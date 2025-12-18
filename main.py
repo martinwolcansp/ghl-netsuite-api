@@ -1,25 +1,24 @@
 from fastapi import FastAPI, Request
 from oauth import get_netsuite_token
 from netsuite import create_lead
+from mapper import build_netsuite_lead
 
-# ✅ La app DEBE existir antes de usar @app
 app = FastAPI()
 
-# 🔍 Health check
-@app.get("/")
-def health():
-    return {"status": "running"}
-
-# 📩 Webhook GoHighLevel
 @app.post("/ghl/contact-created")
 async def receive_contact(request: Request):
-    payload = await request.json()
+    ghl_payload = await request.json()
+
+    print("📩 Contacto GHL recibido")
+
+    lead_payload = build_netsuite_lead(ghl_payload)
 
     token = get_netsuite_token()
-    status, body = create_lead(token, payload)
+    status, body = create_lead(token, lead_payload)
+
+    print(f"📤 NetSuite response: {status}")
 
     return {
-        "netsuite_status": status,
-        "netsuite_response": body
+        "netsuite_status": status
     }
 
