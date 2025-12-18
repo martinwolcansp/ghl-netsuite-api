@@ -25,6 +25,16 @@ def build_netsuite_lead(ghl: dict) -> dict:
             "id": 135179
         },
 
+        # Interesado en
+        "custentity_ap_sp_interesado_en_form_onli": {
+            "id": 1
+        },
+
+        # Forma de contacto
+        "custentity_ap_sp_forma_de_contactoi": {
+            "id": 1
+        },
+
         # Dirección
         "addressbook": {
             "items": [
@@ -32,9 +42,10 @@ def build_netsuite_lead(ghl: dict) -> dict:
                     "defaultBilling": True,
                     "defaultShipping": True,
                     "addressbookaddress": {
-                        "addr1": location.get("address"),
-                        "city": location.get("city"),
-                        "zip": location.get("postalCode"),
+                        "addr1": "Av. Siempre Viva 742",
+                        "custrecord_l54_provincia": "1",
+                        "city": "La Plata",
+                        "zip": "1000",
                         "country": "AR"
                     }
                 }
