@@ -1,66 +1,59 @@
+# oauth.py
 import os
 import time
 import requests
-import base64
 
-NETSUITE_ACCOUNT_ID = os.getenv("NETSUITE_ACCOUNT_ID")
-NETSUITE_CLIENT_ID = os.getenv("NETSUITE_CLIENT_ID")
-NETSUITE_CLIENT_SECRET = os.getenv("NETSUITE_CLIENT_SECRET")
-NETSUITE_REDIRECT_URI = os.getenv("NETSUITE_REDIRECT_URI")
+ACCOUNT_ID = os.getenv("NETSUITE_ACCOUNT_ID")
+CLIENT_ID = os.getenv("NETSUITE_CLIENT_ID")
+CLIENT_SECRET = os.getenv("NETSUITE_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("NETSUITE_REDIRECT_URI")
 
-TOKEN_URL = (
-    f"https://{NETSUITE_ACCOUNT_ID}.suitetalk.api.netsuite.com"
-    "/services/rest/auth/oauth2/v2/token"
-)
+TOKEN_URL = f"https://{ACCOUNT_ID}.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v2/token"
 
 _token_cache = {
     "access_token": None,
-    "expires_at": 0
+    "expires_at": 0,
+    "refresh_token": os.getenv("NETSUITE_REFRESH_TOKEN")  # guardado en Render
 }
 
-def get_netsuite_token(auth_code: str) -> str:
-    if not all([
-        NETSUITE_ACCOUNT_ID,
-        NETSUITE_CLIENT_ID,
-        NETSUITE_CLIENT_SECRET,
-        NETSUITE_REDIRECT_URI
-    ]):
-        raise Exception("❌ Variables de entorno NetSuite incompletas")
+# 🔹 SOLO UNA VEZ (manual)
+def exchange_code_for_tokens(auth_code: str):
+    response = requests.post(
+        TOKEN_URL,
+        auth=(CLIENT_ID, CLIENT_SECRET),
+        data={
+            "grant_type": "authorization_code",
+            "code": auth_code,
+            "redirect_uri": REDIRECT_URI
+        }
+    )
 
+    response.raise_for_status()
+    return response.json()
+
+
+# 🔹 USO PRODUCTIVO
+def get_netsuite_token():
     now = time.time()
 
     if _token_cache["access_token"] and now < _token_cache["expires_at"]:
         return _token_cache["access_token"]
 
-    auth_str = f"{NETSUITE_CLIENT_ID}:{NETSUITE_CLIENT_SECRET}"
-    auth_base64 = base64.b64encode(auth_str.encode()).decode()
+    response = requests.post(
+        TOKEN_URL,
+        auth=(CLIENT_ID, CLIENT_SECRET),
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": _token_cache["refresh_token"]
+        }
+    )
 
-    headers = {
-        "Authorization": f"Basic {auth_base64}",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json"
-    }
+    response.raise_for_status()
+    data = response.json()
 
-    data = {
-        "grant_type": "authorization_code",
-        "code": auth_code,
-        "redirect_uri": NETSUITE_REDIRECT_URI
-    }
+    expires_in = int(data.get("expires_in", 3600))
 
-    response = requests.post(TOKEN_URL, headers=headers, data=data)
-
-    if response.status_code != 200:
-        raise Exception(
-            f"❌ OAuth NetSuite error\n"
-            f"Status: {response.status_code}\n"
-            f"Body: {response.text}"
-        )
-
-    token_data = response.json()
-
-    expires_in = int(token_data.get("expires_in", 3600))
-
-    _token_cache["access_token"] = token_data["access_token"]
+    _token_cache["access_token"] = data["access_token"]
     _token_cache["expires_at"] = now + expires_in - 60
 
     return _token_cache["access_token"]
