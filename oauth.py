@@ -69,10 +69,12 @@ def get_netsuite_token():
         print("Body:", response.text)
         response.raise_for_status()
 
-    token_data = response.json()
+   token_data = response.json()
+
+    expires_in = int(token_data.get("expires_in", 3600))
 
     _token_cache["access_token"] = token_data["access_token"]
-    _token_cache["expires_at"] = now + token_data["expires_in"] - 60
+    _token_cache["expires_at"] = now + expires_in - 60
 
     print("✅ Access token NetSuite renovado correctamente")
     return _token_cache["access_token"]
